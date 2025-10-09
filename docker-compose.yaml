@@ -1,0 +1,100 @@
+services:
+  traefik:
+    image: traefik:v3.5.3
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+    networks:
+     # Connect to the 'traefik_proxy' overlay network for inter-container communication across nodes
+      - public_net
+
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+#      - ./certs:/certs:ro
+#      - ./dynamic:/dynamic:ro
+      - ./letsencrypt:/letsencrypt
+
+    environment:
+      - TZ=Asia/Jakarta
+      - CF_API_EMAIL=***REDACTED*** 
+      - CF_DNS_API_TOKEN=***REDACTED***
+
+    command:
+      # EntryPoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls=true"
+      # Optionally make 'le' the default resolver for TLS-enabled routers
+      - "--entrypoints.websecure.http.tls.certresolver=le"
+
+      # Attach the static configuration tls.yaml file that contains the tls configuration settings
+      # - "--providers.file.filename=/dynamic/tls.yaml"
+
+      # Providers 
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=public_net"
+
+      # API & Dashboard 
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+
+      # Observability 
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--metrics.prometheus=true"
+
+      # Let's Encrypt
+      - "--certificatesresolvers.le.acme.email=***REDACTED***"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json" # Path inside container volume
+      - "--certificatesresolvers.le.acme.dnschallenge.provider=cloudflare" # Needs provider setup
+      - "--certificatesresolvers.le.acme.dnsChallenge.resolvers=1.1.1.1, 1.0.0.1"
+      - "--certificatesresolvers.le.acme.dnsChallenge.propagation.disableChecks=true"
+
+  # Traefik Dynamic configuration via Docker labels
+    labels:
+      # Enable self-routing
+      - "traefik.enable=true"
+
+      # Dashboard router
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.voyager.qzz.io`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=le"
+      - "traefik.http.routers.dashboard.tls.domains[0].main=voyager.qzz.io"
+      - "traefik.http.routers.dashboard.tls.domains[0].sans=*.voyager.qzz.io"
+
+      # Basic-auth middleware
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=***REDACTED***" # Generate using htpasswd -nb admin "P@ssw0rd" | sed -e 's/\$/\$\$/g'
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
+
+# Whoami application
+  whoami:
+    image: traefik/whoami
+    container_name: whoami
+    restart: unless-stopped
+    networks:
+      - public_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.voyager.qzz.io`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls=true"
+      - "traefik.http.routers.whoami.tls.certresolver=le"
+      - "traefik.http.routers.whoami.tls.domains[0].main=voyager.qzz.io"
+      - "traefik.http.routers.whoami.tls.domains[0].sans=*.voyager.qzz.io"
+
+networks:
+  public_net:
+    name: public_net
