@@ -62,6 +62,9 @@ services:
       - "--certificatesresolvers.le.acme.dnsChallenge.resolvers=1.1.1.1, 1.0.0.1"
       - "--certificatesresolvers.le.acme.dnsChallenge.propagation.disableChecks=true"
 
+      # Servers Transport
+      - "--serversTransport.insecureSkipVerify=true"
+
   # Traefik Dynamic configuration via Docker labels
     labels:
       # Enable self-routing
