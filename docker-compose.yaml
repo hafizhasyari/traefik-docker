@@ -24,8 +24,8 @@ services:
 
     environment:
       - TZ=Asia/Jakarta
-      - CF_API_EMAIL=***REDACTED*** 
-      - CF_DNS_API_TOKEN=***REDACTED***
+      - CF_API_EMAIL=${CF_API_EMAIL} 
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
 
     command:
       # EntryPoints
@@ -56,7 +56,7 @@ services:
       - "--metrics.prometheus=true"
 
       # Let's Encrypt
-      - "--certificatesresolvers.le.acme.email=***REDACTED***"
+      - "--certificatesresolvers.le.acme.email=${ACME_EMAIL}"
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json" # Path inside container volume
       - "--certificatesresolvers.le.acme.dnschallenge.provider=cloudflare" # Needs provider setup
       - "--certificatesresolvers.le.acme.dnsChallenge.resolvers=1.1.1.1, 1.0.0.1"
@@ -80,7 +80,7 @@ services:
       - "traefik.http.routers.dashboard.tls.domains[0].sans=*.voyager.qzz.io"
 
       # Basic-auth middleware
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users=***REDACTED***" # Generate using htpasswd -nb admin "P@ssw0rd" | sed -e 's/\$/\$\$/g'
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${BASIC_AUTH}" # Generate using htpasswd -nb admin "P@ssw0rd" | sed -e 's/\$/\$\$/g'
       - "traefik.http.routers.dashboard.middlewares=dashboard-auth@docker"
 
 # Whoami application
